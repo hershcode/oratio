@@ -1,3 +1,4 @@
+import os
 import numpy as np
 import tensorflow as tf
 import malaya_speech
@@ -5,13 +6,22 @@ import noisereduce as nr
 import librosa 
 import numpy as np
 import pickle 
-import os 
+import yaml
+from google.cloud import aiplatform 
+
+def load_config_file():
+    
+    print(os.getcwd())
+    with open('config.yaml', 'r') as file:
+        config = yaml.safe_load(file)
+
+    return config 
 
 class Oratio:
     
     def __init__(self):
-        self.model = tf.keras.models.load_model('models/oratio_model.h5')
-        self.le = pickle.load(open("models/le.pkl",'rb'))
+        self.config = load_config_file() 
+        self.load_model()
     
     def prepare_data(self, filename):
 
@@ -41,8 +51,25 @@ class Oratio:
         
         signal = self.prepare_data(filename=filename)
         mfcc_input = self.extract_mfcc(array=signal)
-        output = self.model.predict(mfcc_input)
-        index = np.argmax(output[0])
-        prediction = self.le.inverse_transform([index])[0]
+        prediction = self.model.predict([mfcc_input])
+        if self.le:
+            index = np.argmax(prediction[0])
+            prediction = self.le.inverse_transform([index])[0]
+        else:
+            prediction = prediction.predictions[0][0]
 
         return prediction 
+
+
+    def load_model(self):
+
+        if self.config['model_path'][-2:]:
+            self.model = tf.keras.models.load_model('models/oratio_model.h5')
+            self.le = pickle.load(open("models/le.pkl",'rb'))
+        else:
+            self.model = aiplatform.Endpoint(
+                endpoint_name=self.config['model_path']
+            )
+            print("here")
+            print(self.model)
+            self.le = None 

@@ -3,3 +3,7 @@
 *.wav
 *.pyc
 .DS_Store
+.vscode/
+/data/
+*.h5
+*.pkl
